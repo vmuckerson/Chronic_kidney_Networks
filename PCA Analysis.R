@@ -5,20 +5,51 @@ library(GEOquery)
 A_N570 <- readRDS("/Users/saezlab/Documents/CKD_Data/Norm_Data/GSE69438_Norm570.rds")
 Apheno <- getGEO(GEO = "GSE69438", destdir = tempdir("/Users/saezlab/Documents/CKD_Data/GSE69438/"))
 
-ADisease <- Apheno$GSE69438_series_matrix.txt.gz$title %>% as.tibble %>%
+disease <- Apheno$GSE69438_series_matrix.txt.gz$title %>% as.tibble %>%
   separate(value, into = c("Disease", "Combo"), sep = " Cprobe") %>%
-  select(-c(Combo)) %>% print()
+  select(-c(Combo)) %>% as_vector %>% sapply(function(x) {
+    x <- as.character(x)
+    if(grepl("^Diabetic Nephropathy",x)) {
+      "DN"
+    } else if (grepl("^Focal and Segmental Glomerulosclerosis",x)) {
+      "FSGS"
+    } else if (grepl("^Hypertensive nephropathy",x)) {
+      "HT"
+    } else if (grepl("^IgA Nephropathy",x)) {
+      "IgA"
+    } else if (grepl("^Minimal Change Disease",x)) {
+      "MCD"
+    } else if (grepl("^Membranous Glomerulonephritis",x)) {
+      "MGN"
+    } else if (grepl("^CKD",x)) {
+      "CKD"
+    } else if (grepl("Lupus Nephritis",x)) {
+      "LN"
+    } else {
+      NA
+    }
+  })
 
-ATissue <- Apheno$GSE69438_series_matrix.txt.gz$characteristics_ch1 %>% as.tibble %>%
+tissue <- Apheno$GSE69438_series_matrix.txt.gz$characteristics_ch1 %>% as.tibble %>%
   separate(value, into = c("t", "Tissue", "y", "z", "j"), sep = " ") %>%
-  select(-c(t, y, z, j)) %>%
-  print()
+  select(-c(t, y, z, j)) %>% as_vector() %>% sapply(function(x) {
+    x <- as.character(x)
+    if(grepl("^Tubulointerstitium",x)) {
+      "Tub"
+    } else {
+      NA
+    }
+  })
 
-#AGene <- Apheno$GSE69438_series_matrix.txt.gz@featureData@data$Description %>% as.tibble() %>% print()
+AEx <- t(A_N570[-1]) %>% as.tibble %>%
+  add_column(disease, .before = 1) %>%
+  add_column(tissue, .before = 1) %>% 
+  add_column("experiment" = "GSE69438", .before = 1) %>%
+  add_column("platform" = "GPL570", .after = 1)
 
-v <- tibble(sample = colnames(A_N570)[-1], tissue = ATissue$Tissue, disease = ADisease$Disease)
-v
-
+A.pca<- prcomp(AEx[,c(5:23525)], center=TRUE, scale. = TRUE)
+ggbiplot(A.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=tissue) +
+  ggtitle("PCA of GSE69438 Platform GPL570")
 
 
 
@@ -32,11 +63,15 @@ B <- Bpheno$`GSE104948-GPL22945_series_matrix.txt.gz`$`title`%>%
   mutate(disease= str_extract(disease, '\\D*(?=\\d)')) %>%
            print()
 
-#BGene <- Bpheno$`GSE104948-GPL22945_series_matrix.txt.gz`@featureData@data$SPOT_ID %>% as.tibble() %>% print()
+BEx <- t(B_N570[-1]) %>% as.tibble %>%
+  add_column("disease", B$disease, .before = 1) %>%
+  add_column("tissue", B$tissue, .before = 1) %>%
+  add_column("experiment" = "GSE104948", .before = 1)%>%
+  add_column("platform" = "GPL570", .after = 1)
 
-w <- tibble(sample = colnames(B_N570)[-1], tissue = B$tissue, disease = B$disease)
-w
-
+B.pca570<- prcomp(BEx[,c(5:23525)], center=TRUE, scale. = TRUE)
+ggbiplot(B.pca570, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=B$disease) +
+  ggtitle("PCA of GSE104948 Platform GPL570")
 
 
 
@@ -48,14 +83,15 @@ B <- Bpheno$`GSE104948-GPL24120_series_matrix.txt.gz`$title %>% as.tibble %>%
   select(-c(h, Disease)) %>%
   print()
 
-#BGene96 <- Bpheno$`GSE104948-GPL24120_series_matrix.txt.gz`@featureData@data$Description %>% as.tibble() %>% print()
+BEx_96 <- t(B_N96[-1]) %>% as.tibble %>%
+  add_column("disease", B$disease, .before = 1) %>%
+  add_column("tissue", B$tissue, .before = 1) %>%
+  add_column("experiment" = "GSE104948", .before = 1)%>%
+  add_column("platform" = "GPL96", .after = 1)
 
-BSample96 <- Bpheno$`GSE104948-GPL24120_series_matrix.txt.gz`@phenoData@data$geo_accession
-BSample96
-
-x <- tibble(sample = BSample96[1:125], tissue = B$tissue, disease = B$disease)
-x
-
+B.pca96<- prcomp(BEx_96[,c(5:13520)], center=TRUE, scale. = TRUE)
+ggbiplot(B.pca96, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=B$disease) +
+  ggtitle("PCA of GSE104948 Platform GPL96")
 
 
 
@@ -68,11 +104,15 @@ C <- Cpheno$`GSE104954-GPL22945_series_matrix.txt.gz`$title %>% as.tibble %>%
   select(-c(h, Disease)) %>%
   print()
 
-#CGene <- Cpheno$`GSE104954-GPL22945_series_matrix.txt.gz`@featureData@data$SPOT_ID %>% as.tibble() %>% print()
+CEx <- t(C_N570[-1]) %>% as.tibble %>%
+  add_column("disease", C$disease, .before = 1) %>%
+  add_column("tissue", C$tissue, .before = 1) %>%
+  add_column("experiment" = "GSE104954", .before = 1)%>%
+  add_column("platform" = "GPL570", .after = 1)
 
-y <- tibble(sample = colnames(C_N570)[-1], tissue = C$tissue, disease = C$disease)
-y
-
+C.pca570<- prcomp(CEx[,c(5:23525)], center=TRUE, scale. = TRUE)
+ggbiplot(C.pca570, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=C$disease) +
+  ggtitle("PCA of GSE104954 Platform GPL570")
 
 
 
@@ -84,11 +124,16 @@ C <- Cpheno$`GSE104954-GPL24120_series_matrix.txt.gz`$title %>% as.tibble %>%
   select(-c(h, Disease)) %>%
   print()
 
-#CGene96 <- Cpheno$`GSE104954-GPL24120_series_matrix.txt.gz`@featureData@data$SPOT_ID %>% as.tibble() %>% print()
+CEx_96 <- t(C_N96[-1]) %>% as.tibble %>% add_column(C$tissue, .before = 1) %>%
+  add_column(C$disease, .before = 1) %>%
+  add_column("experiment" = "GSE104954", .before = 1)%>%
+  add_column("platform" = "GPL570", .after = 1)
 
-z <- tibble(sample = colnames(C_N96)[-1], tissue = C$tissue, disease = C$disease)
-z
+C.pca96<- prcomp(CEx_96[,c(5:13520)], center=TRUE, scale. = TRUE)
+ggbiplot(C.pca96, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=C$disease) +
+  ggtitle("PCA of GSE10954 Platform GPL96")
 
-
-
-
+#alldata <- cbind(AEx, BEx, BEx_96, CEx, CEx_96)
+#all.pca <- prcomp(alldata,center=TRUE, scale. = TRUE)
+#ggbiplot(all.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=C$disease) +
+#  ggtitle("PCA of All Datasets")
