@@ -1,0 +1,10 @@
+#Defining data
+
+all_data <- readRDS("/Users/saezlab/Documents/all_data.RDS")
+all96 <- readRDS("/Users/saezlab/Documents/all96.RDS")
+all570 <- readRDS("/Users/saezlab/Documents/all570.RDS")
+comdata <- readRDS("/Users/saezlab/Documents/comdata.RDS")
+comdata2 <- readRDS("/Users/saezlab/Documents/comdata2.RDS")
+comdata96 <- readRDS("/Users/saezlab/Documents/comdata96.RDS")
+comdata570 <- readRDS("/Users/saezlab/Documents/comdata570.RDS")
+
