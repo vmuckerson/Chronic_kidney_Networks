@@ -3,7 +3,13 @@ library(ggplot2)
 library(GEOquery)
 library(ggbiplot)
 library(BiocManager)
+library(sva)
 
+##########################
+#Separating Normalized data by platform and experiment and adding variable columns
+
+##########################
+#GSE69438
 
 
 A_N570 <- readRDS("/Users/saezlab/Documents/CKD_Data/Norm_Data/GSE69438_Norm570.rds")
@@ -49,7 +55,7 @@ Atissue <- Apheno$GSE69438_series_matrix.txt.gz$characteristics_ch1 %>% as.tibbl
 AEx <- t(A_N570[-1]) %>% as.tibble %>%
   add_column(disease = Adisease, .before = 1) %>%
   add_column(tissue = Atissue, .before = 1) %>% 
-  add_column("experiment" = "GSE69438", .before = 1) %>%
+  add_column("experiment" = "69438", .before = 1) %>%
   add_column("platform" = "GPL570", .after = 1)
 
 
@@ -57,6 +63,9 @@ A.pca<- prcomp(AEx[,c(5:23525)], center=TRUE, scale. = TRUE)
 ggbiplot(A.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=Adisease) +
   ggtitle("PCA of GSE69438 Platform GPL570")
 
+
+##########################
+#GSE104948
 
 
 B_N570 <- readRDS("/Users/saezlab/Documents/CKD_Data/Norm_Data/GSE104948_Norm570.rds")
@@ -73,7 +82,7 @@ B <- Bpheno$`GSE104948-GPL22945_series_matrix.txt.gz`$`title`%>%
 BEx <- t(B_N570[-1]) %>% as.tibble %>%
   add_column(disease = B$disease, .before = 1) %>%
   add_column(tissue = B$tissue, .before = 1) %>%
-  add_column("experiment" = "GSE104948", .before = 1)%>%
+  add_column("experiment" = "104948", .before = 1)%>%
   add_column("platform" = "GPL570", .after = 1)
 
 B.pca570<- prcomp(BEx[,c(5:23525)], center=TRUE, scale. = TRUE)
@@ -93,13 +102,15 @@ B96 <- Bpheno$`GSE104948-GPL24120_series_matrix.txt.gz`$title %>% as.tibble %>%
 BEx_96 <- t(B_N96[-1]) %>% as.tibble %>%
   add_column(disease = B96$disease, .before = 1) %>%
   add_column(tissue = B96$tissue, .before = 1) %>%
-  add_column("experiment" = "GSE104948", .before = 1)%>%
+  add_column("experiment" = "104948", .before = 1)%>%
   add_column("platform" = "GPL96", .after = 1)
 
 B.pca96<- prcomp(BEx_96[,c(5:13520)], center=TRUE, scale. = TRUE)
 ggbiplot(B.pca96, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=B96$disease) +
   ggtitle("PCA of GSE104948 Platform GPL96")
 
+##########################
+#GSE104954
 
 
 C_N570 <- readRDS("/Users/saezlab/Documents/CKD_Data/Norm_Data/GSE104954_Norm570.rds")
@@ -115,7 +126,7 @@ C <- Cpheno$`GSE104954-GPL22945_series_matrix.txt.gz`$title %>% as.tibble %>%
 CEx <- t(C_N570[-1]) %>% as.tibble %>%
   add_column(disease = C$disease, .before = 1) %>%
   add_column(tissue = C$tissue, .before = 1) %>%
-  add_column("experiment" = "GSE104954", .before = 1)%>%
+  add_column("experiment" = "104954", .before = 1)%>%
   add_column("platform" = "GPL570", .after = 1)
 
 C.pca570<- prcomp(CEx[,c(5:23525)], center=TRUE, scale. = TRUE)
@@ -135,12 +146,21 @@ C <- Cpheno$`GSE104954-GPL24120_series_matrix.txt.gz`$title %>% as.tibble %>%
 CEx_96 <- t(C_N96[-1]) %>% as.tibble %>%
   add_column(disease = C$disease, .before = 1) %>%
   add_column(tissue = C$tissue, .before = 1) %>%
-  add_column("experiment" = "GSE104954", .before = 1)%>%
+  add_column("experiment" = "104954", .before = 1)%>%
   add_column("platform" = "GPL570", .after = 1)
 
 C.pca96<- prcomp(CEx_96[,c(5:13520)], center=TRUE, scale. = TRUE)
 ggbiplot(C.pca96, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=C$disease) +
   ggtitle("PCA of GSE10954 Platform GPL96")
+
+
+
+
+##########################
+#Performaing a PCA of each platform by data set then plotting by variable
+
+##########################
+#Platform GPL570
 
 
 AEx %>% as.list()
@@ -171,6 +191,8 @@ ggbiplot(all570.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all5
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(colour = "Disease")
 
+##########################
+#Platform GPL96
 
 
 BEx_96 %>% as.list()
@@ -198,6 +220,9 @@ ggbiplot(all96.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all96
   ggtitle("PCA of Platform 96") +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(colour = "Disease")
+
+##########################
+#All data combined (regardless of experiment and platform)
 
 
 list_all <- list(AEx, BEx, BEx_96, CEx, CEx_96)
@@ -233,10 +258,145 @@ ggbiplot(all.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_dat
   labs(colour = "Platform")
 
 ##################
+#Batch effect correction against experiment on combined data and resulting pca plots
+
 
 all_data <- as.matrix(all_data)
 
-batch_f <- all_data[,1] %>% as.factor()
+only_num <- all_data %>%
+  as.tibble %>%
+  select(-c(platform, tissue, disease, experiment)) 
+  
+names(only_num) <- NULL
 
-comdata <- ComBat(all_data[c(5:433)], batch_f)
+only_num <- apply(only_num,c(1,2), function(x) as.numeric(x) )
+
+
+comdata <- ComBat(dat = t(as.matrix(only_num)), batch = all_data$experiment, mod = NULL)
+com.pca<- prcomp(t(comdata), center=TRUE, scale. = TRUE)
+
+
+ggbiplot(com.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_data[,1]) +
+  ggtitle("PCA of All Samples after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Experiment")
+
+ggbiplot(all.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_data[,3]) +
+  ggtitle("PCA of All Samples after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Tissue Type")
+
+ggbiplot(all.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_data[,4]) +
+  ggtitle("PCA of All Samples after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Disease")
+
+ggbiplot(all.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_data[,2]) +
+  ggtitle("PCA of All Samples after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Platform")
+
+######################
+#Batch effect correction against experiment by platform and resulting pca plots
+
+##########################
+#Platform GPL570
+
+
+all570 <- as.matrix(all570)
+
+only_570 <- all570 %>%
+  as.tibble %>%
+  select(-c(platform, tissue, disease, experiment)) 
+
+names(only_570) <- NULL
+
+only_570 <- apply(only_570,c(1,2), function(x) as.numeric(x) )
+
+
+comdata570 <- ComBat(dat = t(as.matrix(only_570)), batch = all_data[,1], mod = NULL)
+com570.pca<- prcomp(t(comdata570), center=TRUE, scale. = TRUE)
+
+
+ggbiplot(com570.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all570[,1]) +
+  ggtitle("PCA of Platform 570 after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Experiment")
+
+ggbiplot(com570.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all570[,3]) +
+  ggtitle("PCA of Platform 570 after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Tissue Type")
+
+ggbiplot(com570.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all570[,4]) +
+  ggtitle("PCA of Platform 570 after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Disease")
+
+
+######################
+#Platform GPL96
+
+
+all96 <- as.matrix(all96)
+
+only_96 <- all96 %>%
+  as.tibble %>%
+  select(-c(platform, tissue, disease, experiment)) 
+
+names(only_96) <- NULL
+
+only_96 <- apply(only_96,c(1,2), function(x) as.numeric(x) )
+
+
+comdata96 <- ComBat(dat = t(as.matrix(only_96)), batch = all96[,1], mod = NULL)
+com96.pca<- prcomp(t(comdata96), center=TRUE, scale. = TRUE)
+
+
+ggbiplot(com96.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all96[,1]) +
+  ggtitle("PCA of Platform 96 after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Experiment")
+
+ggbiplot(com96.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all96[,3]) +
+  ggtitle("PCA of Platform 96 after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Tissue Type")
+
+ggbiplot(com96.pca, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all96[,4]) +
+  ggtitle("PCA of Platform 96 after ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Disease")
+
+
+#########################
+#2nd batch effect correction against platform on previously corrected data and resulting pca plots
+
+comdata <- as.matrix(comdata)
+
+comdata2 <- ComBat(dat = comdata, batch = all_data[,2], mod = NULL)
+
+com.pca2<- prcomp(t(comdata2), center=TRUE, scale. = TRUE)
+
+
+ggbiplot(com.pca2, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_data[,1]) +
+  ggtitle("PCA of All Samples after 2nd ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Experiment")
+
+ggbiplot(com.pca2, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_data[,3]) +
+  ggtitle("PCA of All Samples after 2nd ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Tissue Type")
+
+ggbiplot(com.pca2, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_data[,4]) +
+  ggtitle("PCA of All Samples after 2nd ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Disease")
+
+ggbiplot(com.pca2, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_data[,2]) +
+  ggtitle("PCA of All Samples after 2nd ComBat") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Platform")
+
 
