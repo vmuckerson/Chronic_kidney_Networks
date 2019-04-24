@@ -272,7 +272,7 @@ names(only_num) <- NULL
 only_num <- apply(only_num,c(1,2), function(x) as.numeric(x) )
 
 
-comdata <- ComBat(dat = t(as.matrix(only_num)), batch = all_data$experiment, mod = NULL)
+comdata <- ComBat(dat = t(as.matrix(only_num)), batch = all_data[,1], mod = NULL)
 com.pca<- prcomp(t(comdata), center=TRUE, scale. = TRUE)
 
 
@@ -314,7 +314,7 @@ names(only_570) <- NULL
 only_570 <- apply(only_570,c(1,2), function(x) as.numeric(x) )
 
 
-comdata570 <- ComBat(dat = t(as.matrix(only_570)), batch = all_data[,1], mod = NULL)
+comdata570 <- ComBat(dat = t(as.matrix(only_570)), batch = all570[,1], mod = NULL)
 com570.pca<- prcomp(t(comdata570), center=TRUE, scale. = TRUE)
 
 
@@ -400,3 +400,10 @@ ggbiplot(com.pca2, obs.scale = 1, var.scale = 1, var.axes = FALSE, groups=all_da
   labs(colour = "Platform")
 
 
+saveRDS(all_data, file = "/Users/saezlab/Documents/all_data.RDS")
+saveRDS(all96, file = "/Users/saezlab/Documents/all96.RDS")
+saveRDS(all570, file = "/Users/saezlab/Documents/all570.RDS")
+saveRDS(comdata, file = "/Users/saezlab/Documents/comdata.RDS")
+saveRDS(comdata2, file = "/Users/saezlab/Documents/comdata2.RDS")
+saveRDS(comdata96, file = "/Users/saezlab/Documents/comdata96.RDS")
+saveRDS(comdata570, file = "/Users/saezlab/Documents/comdata570.RDS")
