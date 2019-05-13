@@ -72,8 +72,33 @@ plot(comdata, col = fitK2$cluster)
 
 
 #HIERARCHICAL CLUSTERING --------
+#PRE COMBAT DATA ----------------
+d <- dist(dataScaled)
+fitH <- hclust(d)
+plot(fitH)
+rect.hclust(fitH, k = 4, border = "red")
+clusters <- cutree(fitH, k = 4)
+plot(only_num, col = clusters)
 
+fitH2 <- hclust(d, "ward.D2")
+plot(fitH2)
+rect.hclust(fitH2, k = 4, border = "red")
+clusters2 <- cutree(fitH2, k = 4)
+plot(only_num, col = clusters2)
 
+#POST COMBAT DATA--------------
+dc <- dist(comScaled)
+fitHc <- hclust(dc)
+plot(fitHc)
+rect.hclust(fitHc, k = 4, border = "red")
+clustersc <- cutree(fitHc, k = 4)
+plot(comdata, col = clustersc)
+
+fitH2c <- hclust(dc, "ward.D2")
+plot(fitH2c)
+rect.hclust(fitH2c, k = 4, border = "red")
+clusters2c <- cutree(fitH2c, k = 4)
+plot(comdata, col = clusters2c)
 
 
 
