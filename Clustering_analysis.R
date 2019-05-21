@@ -1,17 +1,29 @@
-if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
-install.packages("cluster")
+library(cluster)
+library(dbscan)
 library(BiocManager)
 library(cluster)
+library(mclust)
+library(tidyverse)
+library(ConsensusClusterPlus)
+library(ALL)
+library(dplyr)
 
-
+all_data <- readRDS(file = "Documents/all_data.RDS")
+only_num <- readRDS(file = "Documents/only_num.RDS")
+comdata2 <- readRDS(file = "Documents/comdata2.RDS")
+all_pca <- readRDS(file = "Documents/all_pca.RDS")
+com_pca2 <- readRDS(file = "Documents/com_pca2.RDS")
 dataScaled <- scale(only_num[,])
+disease <- all_data[,4]
+experiment <- all_data[,1]
+platform <- all_data[,2]
+comScaled <- scale(t(comdata2))
 
 #K-MEANS CLUSTERING ---
 #CHOOSING K -----------
 k <- list()
 for(i in 1:15){
-  k[[i]] <-kmeans(only_num[,], i)
+  k[[i]] <-kmeans(na.omit(dataScaled[,-1]), i)
 }
 
 k
@@ -23,6 +35,8 @@ for(i in 1:15){
 
 plot(1:15, betweenss_totss, type = "b",
      ylab = "Between SS / Total SS", xlab = "Number of Clusters (k)")
+
+
 
 
 #CHOOSING K POST COMBAT -----------
@@ -41,82 +55,148 @@ for(i in 1:15){
 }
 
 plot(1:15, betweenss_totss2, type = "b",
-    ylab = "Between SS / Total SS", xlab = "Number of Clusters (k)")
+     ylab = "Between SS / Total SS", xlab = "Number of Clusters (k)")
 
 #CLUSTERING -------------
-fitK <- kmeans(dataScaled[,], 2)
-plot(only_num, col = fitK$cluster)
+fitK <- kmeans(dataScaled[,-1], 5)
 
-fitK <- kmeans(dataScaled[,], 4)
-plot(only_num, col = fitK$cluster)
+tmpk <- data.frame(PC1= all_pca$x[,1], PC2=all_pca$x[,2],clust=fitK$cluster, dis=disease, ex = experiment, plat = platform)
+ggplot(tmpk, aes(PC1,PC2,col=as.factor(disease))) +
+  geom_point(aes(shape=as.factor(fitK$cluster)))+
+  stat_ellipse(aes(PC1, PC2, color = as.factor(fitK$cluster)), type = "norm")
 
-fitK <- kmeans(dataScaled[,], 6)
-plot(only_num, col = fitK$cluster)
-
-fitK <- kmeans(all.pca[,], 7)
-plot(only_num, col = fitK$cluster)
 
 ## CLUSTERING POST COMBAT--------
-fitK2 <- kmeans(comScaled[,], 2)
-plot(comdata, col = fitK2$cluster)
+fitKc <- kmeans(comScaled[,], 3)
 
-fitK2 <- kmeans(comScaled[,], 4)
-plot(comdata, col = fitK2$cluster)
-
-fitK2 <- kmeans(comScaled[,], 6)
-plot(comdata, col = fitK2$cluster)
-
-fitK2 <- kmeans(comScaled[,], 7)
-plot(comdata, col = fitK2$cluster)
-
+tmpkc <- data.frame(PC1= com_pca2$x[,1], PC2=com_pca2$x[,2],clust=fitKc$cluster, dis=disease, ex = experiment, plat = platform)
+ggplot(tmpkc, aes(PC1, PC2, col=as.factor(disease)))+
+  geom_point(aes(shape=as.factor(fitKc$cluster))) +
+  stat_ellipse(aes(PC1, PC2, color = as.factor(fitKc$cluster)), type = "norm")
 
 
 #HIERARCHICAL CLUSTERING --------
 #PRE COMBAT DATA ----------------
-d <- dist(dataScaled)
+d <- dist(dataScaled[,-1])
 fitH <- hclust(d)
 plot(fitH)
-rect.hclust(fitH, k = 4, border = "red")
-clusters <- cutree(fitH, k = 4)
-plot(only_num, col = clusters)
+rect.hclust(fitH, k = 5, border = "red")
+clusters <- cutree(fitH, k = 5)
 
-fitH2 <- hclust(d, "ward.D2")
-plot(fitH2)
-rect.hclust(fitH2, k = 4, border = "red")
-clusters2 <- cutree(fitH2, k = 4)
-plot(only_num, col = clusters2)
+
+tmp <- data.frame(PC1= all_pca$x[,1], PC2=all_pca$x[,2],clust=clusters, dis=disease, ex = experiment, plat = platform)
+ggplot(tmp, aes(PC1,PC2,col=as.factor(disease))) +
+  geom_point(aes(shape=as.factor(clust))) +
+  stat_ellipse(aes(PC1, PC2, color = as.factor(clust)), type = "norm")
+
+
+
+#fitH2 <- hclust(d, "ward.D2")
+#plot(fitH2)
+#rect.hclust(fitH2, k = 4, border = "red")
+#clusters2 <- cutree(fitH2, k = 4)
+
+#tmp2 <- data.frame(pc.x= all_pca$x[,1], pc.y=all_pca$x[,2],clust=clusters2, dis=disease)
+#ggplot(tmp2, aes(pc.x,pc.y,col=as.factor(disease))) + geom_point(aes(shape=as.factor(clust)))
+
+
 
 #POST COMBAT DATA--------------
 dc <- dist(comScaled)
 fitHc <- hclust(dc)
 plot(fitHc)
-rect.hclust(fitHc, k = 4, border = "red")
-clustersc <- cutree(fitHc, k = 4)
-plot(comdata, col = clustersc)
+rect.hclust(fitHc, k = 3, border = "red")
+clustersc <- cutree(fitHc, k = 3)
+plot(comScaled, col = clustersc)
 
-fitH2c <- hclust(dc, "ward.D2")
-plot(fitH2c)
-rect.hclust(fitH2c, k = 4, border = "red")
-clusters2c <- cutree(fitH2c, k = 4)
-plot(comdata, col = clusters2c)
 
+tmpc <- data.frame(PC1= com_pca2$x[,1], PC2= com_pca2$x[,2],clust=clustersc, dis=disease, ex = experiment, plat = platform)
+ggplot(tmpc, aes(PC1,PC2,col=as.factor(disease))) +
+  geom_point(aes(shape=as.factor(clust))) +
+  stat_ellipse(aes(PC1, PC2, color = as.factor(clust), type = "norm"))
+
+
+
+#fitH2c <- hclust(dc, "ward.D2")
+#plot(fitH2c)
+#rect.hclust(fitH2c, k = 4, border = "red")
+#clusters2c <- cutree(fitH2c, k = 4)
+#plot(comdata, col = clusters2c)
+
+#tmpc2 <- data.frame(pc.x= com_pca2$x[,1], pc.y=com_pca2$x[,2],clust=clusters2c, dis=disease, ex = experiment, plat = platform)
+#ggplot(tmpc2, aes(pc.x,pc.y,col=as.factor(experiment))) +
+#  geom_point(aes(shape=as.factor(clust)))
+
+
+#DENSITY BASED CLUSTERING -------
+kNNdistplot(dataScaled, k = 5)
+abline(h = 52, col = "red", lty = 2)
+fitD <- dbscan(dataScaled, eps = 52, minPts = 5)
+fitD
+tmpd <- data.frame(PC1= all_pca$x[,1], PC2=all_pca$x[,2],clust=fitD$cluster, dis=disease, ex = experiment, plat = platform)
+ggplot(tmpd, aes(PC1,PC2,col=as.factor(disease))) +
+  geom_point(aes(shape=as.factor(fitD$cluster)))
+
+
+#DBC ON POSTCOMBAT DATA---------
+kNNdistplot(comScaled, k = 3)
+abline(h = 85, col = "red", lty = 2)
+fitDc <- dbscan(comScaled, eps = 85, minPts = 3)
+fitDc
+tmpdc <- data.frame(PC1= com_pca2$x[,1], PC2=com_pca2$x[,2],clust=fitDc$cluster, dis=disease, ex = experiment, plat = platform)
+ggplot(tmpdc, aes(PC1,PC2,col=as.factor(disease))) +
+  geom_point(aes(shape=as.factor(fitDc$cluster)))
 
 
 
 #MODEL-BASED CLUSTERING ---------
-library(mclust)
-fitM <- Mclust(only_num)
+fitM <- Mclust(dataScaled[,-1])
 plot(fitM)
+tmpM <- data.frame(PC1= com_pca2$x[,1], PC2=com_pca2$x[,2],clust=fitM$classification, dis=disease, ex = experiment, plat = platform)
+ggplot(tmpM, aes(PC1,PC2,col=as.factor(disease))) +
+  geom_point(aes(shape=as.factor(fitM)))
 
 #MBC ON POST COMBAT DATA---------
-fitM2 <- Mclust(comdata)
+fitM2 <- Mclust(comScaled)
 plot(fitM2)
+tmpMc <- data.frame(PC1= com_pca2$x[,1], PC2=com_pca2$x[,2],clust=fitM2$classification, dis=disease, ex = experiment, plat = platform)
+ggplot(tmpMc, aes(PC1,PC2,col=as.factor(disease))) +
+  geom_point(aes(shape=as.factor(fitM2$classification)))
+
+#Consensus Clustering------------
+clu <- t(dataScaled)
+mads = apply(clu,1,mad)
+d=clu[rev(order(mads))[1:5000],]
+d=sweep(d,1,apply(d,1,median,na.rm=T))
+title=tempdir()
+results=ConsensusClusterPlus(d, maxK=12,
+                             reps=1000,
+                             pItem = 0.8,
+                             pFeature=1,
+                             title="Consensus Cluster on Precombat Data",
+                             innerLinkage="average",
+                             finalLinkage = "average",
+                             clusterAlg="hc",
+                             distance="pearson")
 
 
+icl <- calcICL(results)
 
 
+#CONSENSUS CLUSTERING ON POST COMBAT DATA------
+mads = apply(comScaled,1,mad)
+dc=comScaled[rev(order(mads))[1:5000],]
+dc=sweep(dc,1,apply(dc,1,median,na.rm=T))
+title=tempdir()
+resultsc=ConsensusClusterPlus(dc, maxK=12,
+                             reps=1000,
+                             pItem = 0.8,
+                             pFeature=1,
+                             title="Consensus Cluster on Postcombat Data",
+                             innerLinkage="average",
+                             finalLinkage = "average",
+                             clusterAlg="hc",
+                             distance="pearson")
 
-
-
-
+iclc = calcICL(resultsc)
 
