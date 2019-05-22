@@ -40,8 +40,6 @@ plot(1:15, betweenss_totss, type = "b",
 
 
 #CHOOSING K POST COMBAT -----------
-comScaled <- scale(comdata)
-
 k2 <- list()
 for(i in 1:15){
   k2[[i]] <-kmeans(comScaled[,], i)
@@ -184,10 +182,10 @@ icl <- calcICL(results)
 
 
 #CONSENSUS CLUSTERING ON POST COMBAT DATA------
-mads = apply(comScaled,1,mad)
-dc=comScaled[rev(order(mads))[1:5000],]
+cluc <- t(comScaled)
+mads = apply(cluc, 1, mad)
+dc=cluc[rev(order(mads))[1:5000],]
 dc=sweep(dc,1,apply(dc,1,median,na.rm=T))
-title=tempdir()
 resultsc=ConsensusClusterPlus(dc, maxK=12,
                              reps=1000,
                              pItem = 0.8,
