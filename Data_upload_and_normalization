@@ -1,94 +1,146 @@
 #Download libraries
 
 library(GEOquery)
-library(affy)
-library(oligo)
+library(biomaRt)
+library(qusage)
 library(Biobase)
+library(annotate)
+library(hgu133a.db)
 
-wd <- file.path(getwd())
-exper <- 'GSE104948'
+setwd("/Users/saezlab/Documents/CKD_Data/FinalData/")
 
+###Download the data of the datasets as an Expression Set###########
 
-### 1 Download the data in your local folder ###########
-# Get the TAR file with all CEL files (each one sample)
+Glom_data <- getGEO(GEO = 'GSE104948')
+Glom_22945 <- Glom_data$`GSE104948-GPL22945_series_matrix.txt.gz`
+Glom_24120 <- Glom_data$`GSE104948-GPL24120_series_matrix.txt.gz`
 
-#Download CEL files
-url <- "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE104nnn/GSE104948/suppl/GSE104948_RAW.tar"
-tar_file <- paste0("./CKD_Data/",basename(url))
+Tub_data <- getGEO(GEO = 'GSE104954')
+Tub_22945 <- Tub_data$`GSE104954-GPL22945_series_matrix.txt.gz`
+Tub_24120 <- Tub_data$`GSE104954-GPL24120_series_matrix.txt.gz`
 
-# Create dir folder
-dir.create("./CKD_Data")
-download.file(url=url, destfile = tar_file)
+#####Separate the phenotypic and expression data from the large files#####
 
-# Untar files
-untar(tar_file, exdir="./CKD_Data")
+#Phenotypic
+PGlom_22945 <- pData(Glom_22945)
+PGlom_24120 <- pData(Glom_24120)
 
+PTub_22945 <- pData(Tub_22945)
+PTub_24120 <- pData(Tub_24120)
 
-# get Metadata #######################
-# Source (FTP): ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE104nnn/GSE104948/matrix/
-
-# 1st platform
-url1 <- "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE104nnn/GSE104948/matrix/GSE104948-GPL22945_series_matrix.txt.gz"
-matrix_file1 <- paste0("./CKD_data/",basename(url1))
-download.file(url1, matrix_file1)
-
-# 2nd platform
-url2 <- "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE104nnn/GSE104948/matrix/GSE104948-GPL24120_series_matrix.txt.gz"
-matrix_file2 <- paste0("./CKD_data/",basename(url2))
-download.file(url2, matrix_file2)
+#Expression data as a data frame
+ExGlom_22945 <- as.data.frame(exprs(Glom_22945))
+ExGlom_24120 <- as.data.frame(exprs(Glom_24120))
+ExTub_22945 <- as.data.frame(exprs(Tub_22945))
+ExTub_24120 <- as.data.frame(exprs(Tub_24120))
 
 
+#####Annotate data frames with Gene Symbols instead of IDs#######
 
-### 2 Load the data ######################################
-# Get all the CEL files
-fls <- list.files(path = "./CKD_Data",pattern = "\\.CEL(\\.gz)$", full.names = TRUE)
-names(fls) <- basename(fls)
+fGlom_22945 <- fData(Glom_22945)
+fTub_22945 <- fData(Tub_22945)
+fGlom24120 <- fData(Glom_24120)
+fTub24120 <- fData(Tub_24120)
 
-# This dataset is a bit tricky. There are two platforms within the same dataset.
-# Thus we cannot just load all the CEL files because they have different dimensions.
-# Instead we have to load all samples by platform.
+##Data without Gene Symbol data
 
-
-
-###################################################### GPL22945 ###################
-GPL22945 <- getGEO(filename = "./CKD_Data/GSE104948-GPL22945_series_matrix.txt.gz")
-GEOACC_GPL22945 <- basename(as.character(pData(GPL22945)$supplementary_file))
-
-# Read raw data
-rawData_GPL22945 <- oligo::read.celfiles(fls[GEOACC_GPL22945])
-# Rename samples w/ only the GEO accession number
-# Note: Not always this is needed
-sampleNames(rawData_GPL22945) <- sapply(sampleNames(rawData_GPL22945),function(sampleName) strsplit(sampleName,split="_")[[1]][1])
-
-# RMA normalization
-norm_GPL22945 <- oligo::rma(rawData_GPL22945,background=TRUE, normalize=TRUE)
-
-# Update sample metadata
-stopifnot(all(sampleNames(norm_GPL22945) %in% sampleNames(GPL22945)))
-pData(norm_GPL22945) <- pData(GPL22945)[sampleNames(norm_GPL22945),]
+genesymbols = getSYMBOL(x = as.character(fGlom24120$ENTREZ_GENE_ID), data = "hgu133a.db")
 
 
-###################################################### GPL24120 ###################
-# The same, but for the other platform
+#Converting probe IDs to Gene Symbols using BiomaRT
+mart <- useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
 
-GPL24120 <- getGEO(filename = "./CKD_Data/GSE104948-GPL24120_series_matrix.txt.gz")
-GEOACC_GPL24120 <- basename(as.character(pData(GPL24120)$supplementary_file))
-
-# Read raw data
-rawData_GPL24120 <- oligo::read.celfiles(fls[GEOACC_GPL24120])
-sampleNames(rawData_GPL24120) <- sapply(sampleNames(rawData_GPL24120),function(sampleName) strsplit(sampleName,split="_")[[1]][1])
-
-# RMA normalization
-norm_GPL24120 <- oligo::rma(rawData_GPL24120,background=TRUE, normalize=TRUE)
-
-# Update sample metadata
-stopifnot(all(sampleNames(norm_GPL24120) %in% sampleNames(GPL24120)))
-pData(norm_GPL24120) <- pData(GPL24120)[sampleNames(norm_GPL24120),]
+query <- fGlom24120$ENTREZ_GENE_ID
+my_attributes <- c('hgnc_symbol', 'entrezgene_id')
+matching_tableG24 <- getBM(attributes = c("hgnc_symbol", "entrezgene_id"),
+                      filters = "entrezgene_id",
+                      values = query,
+                      bmHeader = T,
+                      mart = mart)
 
 
-# So both, norm_GPL22945 and norm_GPL24120 are two expression-sets with RMA-qt-normalized profiles
-# splitted by platform from GSE104948 data set.
+query <- fTub24120$ENTREZ_GENE_ID
+matching_tableT24 <- getBM(my_attributes,
+                          filters = 'entrezgene_id',
+                          values = query,
+                          mart = mart)
 
-saveRDS(norm_GPL22945, file="./data/GSE104948_GPL570.rds")
-saveRDS(norm_GPL24120, file="./data/GSE104948_GPL96.rds")
-Collapse
+colnames(matching_tableG24) <- c('probe', 'gene')
+colnames(matching_tableT24) <- c('probe', 'gene')
+
+matching_tableG24$gene[matching_tableG24$gene == "NA"] <- NA
+matching_tableT24$gene[matching_tableT24$gene == "NA"] <- NA
+is.na(matching_tableG24)
+is.na(matching_tableT24)
+
+#Data with Gene Symbol data
+matching_tableG22 <- fGlom_22945[,c("ID", "Symbol")]
+matching_tableT22 <- fTub_22945[,c("ID", "Symbol")]
+
+dfG22 <- ExGlom_22945
+dfG24 <- ExGlom_24120
+dfT22 <- ExTub_22945
+dfT24 <- ExTub_24120
+
+dfG24$gene <- fGlom24120$ENTREZ_GENE_ID
+rownames(dfG24) = as.character((dfG24$gene))
+matching_tableG24 = matching_tableG24[matching_tableG24$probe!="",]
+
+dfT24$gene <- fTub24120$ENTREZ_GENE_ID
+rownames(dfT24) = as.character((dfT24$gene))
+matching_tableT24 = matching_tableT24[matching_tableT24$probe!="",]
+
+#duplicated entrez were discarded
+dup_entrez = matching_tableG24$gene[duplicated(matching_tableG24$gene)]
+matching_tableG24 = matching_tableG24[!matching_tableG24$gene %in% (dup_entrez),]
+dfG24 = dfG24[as.character(matching_tableG24$gene),]
+
+dup_entrez2 = matching_tableT24$gene[duplicated(matching_tableT24$gene)]
+matching_tableT24 = matching_tableT24[!matching_tableT24$gene %in% (dup_entrez2),]
+dfT24 = dfT24[as.character(matching_tableT24$gene),]
+
+#Adding Gene symbols to df
+dfG22$gene <- matching_tableG22$Symbol
+dfT22$gene <- matching_tableT22$Symbol
+dfG24$gene <- matching_tableG24$probe
+dfT24$gene <- matching_tableT24$probe
+
+
+#Aggregate the probe values
+df2G22 <- aggregate(. ~gene, data = dfG22, mean)
+df2T22 <- aggregate(. ~gene, data = dfT22, mean)
+df2G24 <- aggregate(. ~gene, data = dfG24, mean)
+df2T24 <- aggregate(. ~gene, data = dfT24, mean)
+
+#annotate df
+row.names(df2G22) <- dfG22$gene
+row.names(df2T22) <- dfT22$gene
+df2G22 <- df2G22[,-1]
+df2T22 <- df2T22[,-1]
+colnames(df2G22) <- Glom_22945@phenoData@data$geo_accession
+colnames(df2T22) <- Tub_22945@phenoData@data$geo_accession
+
+row.names(df2G24) <- df2G24$gene
+row.names(df2T24) <- df2T24$gene
+df2G24 <- df2G24[,-1]
+df2T24 <- df2T24[,-1]
+colnames(df2G24) <- Glom_24120@phenoData@data$geo_accession
+colnames(df2T24) <- Tub_24120@phenoData@data$geo_accession
+
+
+#Save everything
+saveRDS(df2G22, file="./GSE104948/allGlom_22945.rds")
+saveRDS(df2G24, file="./GSE104948/allGlom_24120.rds")
+saveRDS(df2T22, file="./GSE104948/allTub_22945.rds")
+saveRDS(df2G24, file="./GSE104948/allTub_24120.rds")
+
+saveRDS(PGlom_22945, file="./GSE104948/PGlom_22945.rds")
+saveRDS(PGlom_24120, file="./GSE104948/PGlom_24120.rds")
+saveRDS(PTub_22945, file="./GSE104948/PTub_22945.rds")
+saveRDS(PTub_24120, file="./GSE104948/PTub_24120.rds")
+
+saveRDS(ExGlom_22945, file="./GSE104948/ExGlom_22945.rds")
+saveRDS(ExGlom_24120, file="./GSE104948/ExGlom_24120.rds")
+saveRDS(ExTub_22945, file="./GSE104948/ExTub_22945.rds")
+saveRDS(ExTub_24120, file="./GSE104948/ExTub_24120.rds")
+
