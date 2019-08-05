@@ -1,3 +1,14 @@
+# This script uses the gene expression data of two data sets (GSE32591 and GSE104948).
+# The preprocessed data can be downloaded directly from GEO.
+# The data is divided into Lupus (LN) and Healthy samples and then a DEA is performed
+# to determine which genes are significantly differentially expressed (t-values).
+# The t values are then used to create a risk index for each dataset/DEG combination
+# to observe any underlying molecular differences between the two conditions.
+
+
+
+##### Load Libraries ##########
+
 library(limma)
 library(tidyverse)
 library(BiocManager)
@@ -85,7 +96,7 @@ footprint <- limma_genes2[footprint_genes]
 
 
 
-############# Matrix Scoring #################
+############# RISK INDEX #################
 
 #limiting t values to those present in DEGs of interest
 dea2 <- DEA_results2$Gene %in% limma_genes2
