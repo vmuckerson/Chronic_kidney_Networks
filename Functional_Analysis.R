@@ -1,7 +1,11 @@
 ##Load Libraries
 library(msigdbr)
 library(SPIA)
-library(tidverse)
+library(tidyverse)
+library(dplyr)
+library(plyr)
+library(progeny)
+
 
 
 ## Load Data
@@ -19,7 +23,7 @@ DEA_results1 <- readRDS(file="./LN_DEA_104948.rds")
 DEA_results3 <- readRDS(file="./LN_DEA_32591.rds")
 
 
-## Select DE genes
+## Select DE genes between LN and LD phenotypes
 
 limma_genes <- filter(DEA_results1, adj.P.Val < 0.05)[[1]]
 limma_genes3 <- filter(DEA_results3, adj.P.Val < 0.05)[[1]]
@@ -83,20 +87,44 @@ msig <- msigdbr(species = "Homo sapiens", category = NULL,
         subcategory = NULL)
 
 
-## Changing Gene names to Gene IDs for SPIA analysis
+## SPIA
 
-spia_results1 <- spia(de = de1, all = all1$.rownames, organism = "hsa", data.dir = NULL, pathids = NULL, nB = 2000, plots = TRUE, combine = "norminv")
-spia_results3 <- spia(de = de3, all = all3$.rownames, organism = "hsa", data.dir = NULL, pathids = NULL, nB = 2000, plots = TRUE, combine = "norminv")
+spia_results1 <- spia(de = de1,
+                      all = all1$.rownames,
+                      organism = "hsa",
+                      data.dir = NULL,
+                      pathids = NULL,
+                      nB = 2000,
+                      plots = TRUE,
+                      combine = "norminv")
 
+spia_results3 <- spia(de = de3,
+                      all = all3$.rownames,
+                      organism = "hsa",
+                      data.dir = NULL,
+                      pathids = NULL,
+                      nB = 2000,
+                      plots = TRUE,
+                      combine = "norminv")
 
+## ORA performed via PANTHER to compare pathway predictions and choose the best one for further analysis. SPIA predicted SLE so I went with this one.
 
+## Progeny
 
+pathways <- progeny(as.matrix(data3), scale = FALSE)
+controls <- Pdata3$disease == "LD"
+ctmean <- apply(pathways[controls,], 2, mean)
+ctsd <- apply(pathways[controls,], 2, sd)
+ctmed <- apply(pathways[controls,], 2, median)
+pathways_mean <- t(apply(pathways, 1, function(x) x - ctmean))
+pathways_sd <- apply(pathways, 1, function(x) x/ctsd)
+pathways_med <- apply(pathways, 1, function(x) x - ctmed)
 
+Pln <- Pdata3$disease == "LN"
+ln <- data3[Pln,]
 
+samples <- intersect(colnames(data3), rownames(pathways))
+sle <- data3[,samples]
+mapk <- pathways[samples, "MAPK"]
 
-
-
-
-
-
-
+association <- lm(ctmean ~ mapk)
